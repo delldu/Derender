@@ -8,6 +8,7 @@ from torch.nn import functional as F
 from derender3d import networks, utils
 from derender3d.renderer.utils import get_rotation_matrix
 from derender3d.utils import mask_mean
+import pdb
 
 EPS = 1e-7
 
@@ -151,6 +152,8 @@ class DecompositionLoss(nn.Module):
             recon_albedo = torch.cat([F.conv2d(recon_albedo[:, :1], self._gaussian_kernel, padding=2), F.conv2d(recon_albedo[:, 1:2], self._gaussian_kernel, padding=2), F.conv2d(recon_albedo[:, 2:], self._gaussian_kernel, padding=2)], dim=1)
         recon_depth = (self.scaler.scale(data_dict['recon_depth'][0]) - self.model.min_depth) / (self.model.max_depth - self.model.min_depth) * 2. - 1.
         recon_normal = self.scaler.scale(data_dict['recon_normal'][0], normalize=True)
+        pdb.set_trace()
+
         recon_light = data_dict['recon_light']
         recon_diffuse_shading = self.scaler.scale(data_dict['recon_diffuse_shading'][0])
 

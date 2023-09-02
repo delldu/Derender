@@ -2,6 +2,7 @@ import os
 
 from .loss import *
 from .networks import *
+import pdb
 
 EPS = 1e-7
 
@@ -109,6 +110,7 @@ class LoaderModel():
         recon_normal = torch.stack(normals)
         recon_albedo = torch.stack(albedos)
 
+        pdb.set_trace()
         data_dict['recon_depth'] = [recon_depth]
         data_dict['recon_normal'] = [recon_normal]
         data_dict['recon_albedo'] = [recon_albedo]

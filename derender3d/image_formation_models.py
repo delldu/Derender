@@ -6,7 +6,8 @@ from torch import nn
 from torch.nn import functional as F
 
 from . import networks, utils
-from .utils import get_mask, IdentityLayer
+from .utils import get_mask, IdentityLayer, debug_var
+import pdb
 
 EPS = 1e-7
 GAMMA = 2.2
@@ -77,7 +78,9 @@ class ReconPhongIF(nn.Module):
         self.nr_nf = nr_nf
         self.nr_depth = nr_depth if nr_depth is not None else 5
         self.nr_shadow = nr_shadow
-        if not self.spec_softplus:
+
+        if not self.spec_softplus: # True
+            # spec_alpha_max -- 64
             self.spec_alpha_rescaler = lambda x: ((x * .5 + .5) * (math.sqrt(spec_alpha_max) - 1) + 1) ** 2
         else:
             self.spec_alpha_rescaler = lambda x: x * 16 + 1.
@@ -123,6 +126,7 @@ class ReconPhongIF(nn.Module):
         view_d = self.view_d.expand(b, -1, -1, -1)
 
         if 'netA_out' not in data_dict:
+            # torch.save(self.netA.state_dict(), "/tmp/co3d_netA.pth")
             recon_albedo_specular_notanh = self.netA(input_im)[0]
             data_dict['netA_out'] = recon_albedo_specular_notanh
         else:
@@ -131,13 +135,18 @@ class ReconPhongIF(nn.Module):
         recon_albedo = recon_albedo_specular[:, :3, :, :]
 
         data_dict['recon_albedo'] = [recon_albedo]
+        # (Pdb) debug_var("recon_albedo", recon_albedo)
+        # tensor [recon_albedo] size: [1, 3, 256, 256] , min: tensor(-0.9545, device='cuda:0') , max: tensor(0.5654, device='cuda:0')
 
-        if self.use_gamma_space:
+        if self.use_gamma_space: # True
             recon_albedo = to_gamma_space(recon_albedo / 2 + 0.5)
         else:
             recon_albedo = recon_albedo / 2 + .5
+        # (Pdb) debug_var("recon_albedo", recon_albedo)
+        # tensor [recon_albedo] size: [1, 3, 256, 256] , min: tensor(0.0002, device='cuda:0') , max: tensor(0.5834, device='cuda:0')
 
         if 'netL_out' not in data_dict:
+            # torch.save(self.netL.state_dict(), "/tmp/co3d_netL.pth")
             netL_input = input_im if data_dict['target_im'] is None else data_dict['target_im']
             recon_light_notanh = self.netL(netL_input)
             data_dict['netL_out'] = recon_light_notanh
@@ -145,42 +154,43 @@ class ReconPhongIF(nn.Module):
             recon_light_notanh = data_dict['netL_out']
         recon_light = torch.tanh(recon_light_notanh)
 
-        if not self.predict_specular_alpha:
+        if not self.predict_specular_alpha: # False
             spec_alpha = (torch.ones_like(recon_light[:, :1]) * self.spec_alpha).view(b, 1, 1, 1)
         else:
-            if self.spec_alpha_mode == 'single':
+            if self.spec_alpha_mode == 'single': # True
                 spec_alpha = recon_light_notanh[:, :1].view(b, 1, 1, 1)
             else:
                 spec_alpha = recon_albedo_specular_notanh[:, 3:4, :, :]
-            if not self.spec_softplus:
+            if not self.spec_softplus: # True
                 spec_alpha = torch.tanh(spec_alpha)
             else:
                 spec_alpha = F.softplus(spec_alpha)
             spec_alpha = self.spec_alpha_rescaler(spec_alpha)
 
-        if not self.predict_specular_strength:
+        if not self.predict_specular_strength: # False
             spec_strength = recon_albedo_specular.new_tensor(self.spec_strength).view(1, 1, 1, 1).expand(b, 1, 1, 1)
         else:
-            if self.spec_strength_mode == 'map':
+            if self.spec_strength_mode == 'map': # False
                 spec_strength = recon_albedo_specular[:, 4:] * .5 + .5
-            elif self.spec_strength_mode == 'mask':
+            elif self.spec_strength_mode == 'mask': # False
                 spec_strength = ((recon_light[:, 5:6].view(b, 1, 1, 1) * .5 + .5) * .5)
                 spec_mask = F.upsample(F.avg_pool2d(recon_albedo_specular[:, 4:] * .5 + .5, 4), scale_factor=(4, 4))
                 spec_strength = spec_strength * spec_mask
             else:
                 spec_strength = (recon_light[:, 5:6].view(b, 1, 1, 1) * .5 + .5) * .5
 
-            if self.spec_strength_min is not None:
+            if self.spec_strength_min is not None: # True
+                # self.spec_strength_min -- 0.1
                 spec_strength = spec_strength * 2 * (0.5 - self.spec_strength_min) + self.spec_strength_min
 
         recon_light_a = recon_light[:, 1:2] / 2 + 0.5
         recon_light_b = recon_light[:, 2:3] / 2 + 0.5
-        if not self.light_y_down:
+        if not self.light_y_down: # True
             recon_light_d = torch.cat([recon_light[:, 3:5], torch.ones(b, 1).to(input_im.device)], 1)
         else:
             recon_light_d = torch.cat([recon_light[:, 3:4], -torch.ones(b, 1).to(input_im.device), recon_light[:, 4:5]], 1)
 
-        if light is not None:
+        if light is not None: # False
             if light.shape[-1] == 2:
                 recon_light_d = torch.cat([light, torch.ones(b, 1).to(input_im.device)], 1)
             elif light.shape[-1] == 4:
@@ -203,17 +213,17 @@ class ReconPhongIF(nn.Module):
         specular_mask = get_mask(recon_diffuse_shading.shape, 5, recon_diffuse_shading.device)
 
         reflect_d = (2 * cos_theta * recon_normal - recon_light_d.view(b, 3, 1, 1))
-        if self.detach_spec:
+        if self.detach_spec: # False
             reflect_d = reflect_d.detach()
         specular = (view_d * reflect_d).sum(1, keepdim=True).clamp(min=0) * (cos_theta > 0).to(torch.float32) * specular_mask
-        if not self.spec_taylor:
+        if not self.spec_taylor: # True
             recon_specular_shading = specular.clamp(min=EPS, max=1-EPS).pow(spec_alpha)
         else:
             log_specular = specular.clamp(min=EPS, max=1-EPS).log()
             alpha_log_spec = spec_alpha * log_specular
             recon_specular_shading = (1 + alpha_log_spec + (alpha_log_spec ** 2) / 2 + (alpha_log_spec ** 3) / 6).clamp(0, 1)
 
-        if not self.shadow:
+        if not self.shadow: # True
             recon_shading = recon_light_a.view(-1, 1, 1, 1) + recon_light_b.view(-1, 1, 1, 1) * recon_diffuse_shading
             recon_im = recon_albedo * recon_shading + recon_specular_shading * spec_strength
         else:
@@ -232,11 +242,11 @@ class ReconPhongIF(nn.Module):
         recon_im = 2. * recon_im - 1.
 
         if self.neural_refinement:
-            if not self.nr_albedo:
+            if not self.nr_albedo: # True
                 neural_refinement_in = recon_im
             else:
                 neural_refinement_in = recon_albedo
-            if self.nr_detach:
+            if self.nr_detach: # True
                 neural_refinement_in = neural_refinement_in.detach()
                 recon_albedo_ = recon_albedo.detach()
             else:
@@ -244,7 +254,7 @@ class ReconPhongIF(nn.Module):
 
             neural_spec_mask = self.netNR(neural_refinement_in)[0]
 
-            if not self.shadow:
+            if not self.shadow: # True
                 recon_im_nr = recon_albedo_ * recon_shading + recon_specular_shading * spec_strength * neural_spec_mask
             else:
                 recon_im_nr = recon_albedo_ * recon_shading + torch.min(recon_specular_shading, shading_cap_map_spec) * spec_strength * neural_spec_mask

@@ -6,7 +6,7 @@ from pytorch_msssim import SSIM
 from torch import nn
 
 from derender3d.utils import PSNR, mask_mean
-
+import pdb
 
 class ImageMetrics(nn.Module):
     def __init__(self, model) -> None:
@@ -56,6 +56,7 @@ class DecompositionMetrics(nn.Module):
             suffix = ''
 
         metrics_dict = {}
+        pdb.set_trace()
 
         normal_pred = data_dict['recon_normal'][0]
         normal_gt = data_dict['lr_recon_normal']

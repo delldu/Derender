@@ -160,7 +160,14 @@ class Derender3D():
             recon_normal = self.renderer.get_normal_from_depth(recon_depth.squeeze(1)).permute(0, 3, 1, 2)
             recon_normal = recon_normal / torch.norm(recon_normal, p=2, dim=1, keepdim=True)
         elif self.predict_geometry == 'hr_depth':
+            # (Pdb) input_im.size()
+            # torch.Size([1, 3, 256, 256])
+            # (Pdb) input_im.min(), input_im.max(), input_im.mean()
+            # (tensor(-1., device='cuda:0'), tensor(0.9922, device='cuda:0'), tensor(0.0499, device='cuda:0'))
+
             recon_depth_bump = self.netD(input_im)[0]
+            # torch.save(self.netD.state_dict(), "/tmp/co3d_netD.pth")
+            
             recon_depth = recon_depth_bump[:, :1, :, :]
             recon_bump = recon_depth_bump[:, 1:, :, :]
             recon_bump = recon_bump / torch.norm(recon_bump, p=2, dim=1, keepdim=True)
@@ -171,6 +178,10 @@ class Derender3D():
             recon_normal = recon_normal / torch.norm(recon_normal, p=2, dim=1, keepdim=True)
             recon_normal = recon_normal + recon_bump
             recon_normal = recon_normal / torch.norm(recon_normal, p=2, dim=1, keepdim=True)
+
+            # (Pdb) recon_normal.min() -- -0.9438, max() -- 1.0000, mean() -- 0.3530
+
+
         elif self.predict_geometry == 'normal':
             recon_depth = input_im[:, :1, :, :] * 0
             recon_normal = self.netN(input_im)[0]
@@ -378,7 +389,7 @@ class Derender3D():
         data_dict['target_im'] = target_im
         b, c, h, w = input_im.shape
 
-        if ('recon_depth' not in data_dict) or ('recon_normal' not in data_dict):
+        if ('recon_depth' not in data_dict) or ('recon_normal' not in data_dict): # True
             data_dict = self.predict_shape(data_dict, input_im)
 
         data_dict = self.netIF(data_dict, light)
@@ -501,6 +512,8 @@ class Derender3D():
             # gan_heatmap = utils.get_patch_heatmap(self.data_dict['recon_im_rand'][0], self.netDisc, self.patch_size)
             # end = time.time()
             # print('Heatmap took', end-start, 'seconds.')
+
+        pdb.set_trace()
 
         recon_albedo = self.data_dict['recon_albedo'][0][:b0].detach().cpu() / 2 + 0.5
         recon_depth = (self.data_dict['recon_depth'][0][:b0].detach().cpu() - self.min_depth) / (self.max_depth - self.min_depth)

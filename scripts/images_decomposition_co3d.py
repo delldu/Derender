@@ -1,6 +1,9 @@
 import math
 import os
 import sys
+sys.path.extend(['.', '..'])
+import derender3d
+sys.modules["unsup3d"] = derender3d    
 from pathlib import Path
 
 import cv2
@@ -11,10 +14,12 @@ from tqdm import tqdm
 
 from derender3d import utils
 
-sys.path.extend(['.', '..'])
+
 from derender3d.dataloaders import ImageDataset
 from derender3d.model import Derender3D
-from derender3d.utils import unsqueezer, map_fn, to, get_ball
+from derender3d.utils import unsqueezer, map_fn, to, get_ball, debug_var
+
+import pdb
 
 os.system("nvidia-smi")
 
@@ -24,7 +29,9 @@ cosy_base = Path('datasets') / 'cosy'
 photos_base = Path('datasets') / 'photos'
 
 
-category = 'hydrant'
+# category = 'hydrant'
+category = 'toybus'
+# category = 'bench'
 
 if category != 'cosy' and category != 'photos':
     test_path = co3d_base / f'extracted_{category}' / 'imgs_cropped' / 'val'
@@ -76,7 +83,7 @@ p_nr = False
 p_lr_albedo = False
 p_lr_normal = False
 
-resolution = 256
+resolution = 512
 
 category_indices = {
     'photos': list(range(26)),
@@ -94,14 +101,14 @@ category_indices = {
     'tv': [352, 435, 438, 439, 441, 442, 443, 445, 446, 447]
 }
 
-category_indices_figure = {
-    'hydrant': [117, 332, 355],
-    'toybus': [26, 134],
-    'toyplane': [49],
-    'chair': [306],
-    'sandwich': [228],
-    'cosy': [18, 31]
-}
+# category_indices_figure = {
+#     'hydrant': [117, 332, 355],
+#     'toybus': [26, 134],
+#     'toyplane': [49],
+#     'chair': [306],
+#     'sandwich': [228],
+#     'cosy': [18, 31]
+# }
 
 
 dry_run = False
@@ -138,7 +145,11 @@ def save_plot(img, file_name=None, grey=False, mask=None):
 def main():
     print(f'Loading dataset {category}')
 
-    dataset = ImageDataset(str(test_path), image_size=image_size, crop=None, is_validation=True, precomputed_dir=test_path_precompute, cfgs={'min_depth': .9, 'max_depth': 1.1})
+    dataset = ImageDataset(str(test_path), 
+        image_size=image_size, 
+        crop=None, is_validation=True, 
+        precomputed_dir=None, # test_path_precompute, 
+        cfgs={'min_depth': .9, 'max_depth': 1.1})
 
     print('Loading checkpoint')
     cp = torch.load(cp_path, map_location=device)
@@ -188,6 +199,16 @@ def main():
                     if i == 0:
                         light = None
 
+                    # debug_var("data_dict_.Derender3D.forward.before", data_dict_)
+                    # tensor [input_im] size: [1, 3, 256, 256] , min: tensor(0., device='cuda:0') , max: tensor(1., device='cuda:0')
+                    # tensor [index] size: [1] , min: tensor(134, device='cuda:0') , max: tensor(134, device='cuda:0')
+                    # tensor [recon_albedo] size: [1, 3, 256, 256] , min: tensor(-1., device='cuda:0') , max: tensor(0.9137, device='cuda:0')
+                    # tensor [recon_depth] size: [1, 1, 256, 256] , min: tensor(0.9000, device='cuda:0') , max: tensor(1.1000, device='cuda:0')
+                    # tensor [recon_normal] size: [1, 3, 256, 256] , min: tensor(-0.9998, device='cuda:0') , max: tensor(0.9999, device='cuda:0')
+                    # tensor [recon_im_mask] size: [1, 1, 256, 256] , min: tensor(0., device='cuda:0') , max: tensor(1., device='cuda:0')
+                    # tensor [foreground_mask] size: [1, 1, 256, 256] , min: tensor(0., device='cuda:0') , max: tensor(1., device='cuda:0')
+                    # tensor [canon_light] size: [1, 5] , min: tensor(-0.5192, device='cuda:0') , max: tensor(0.6582, device='cuda:0')
+                    # tensor [view] size: [1, 3, 3] , min: tensor(0., device='cuda:0') , max: tensor(1., device='cuda:0')
                     with torch.no_grad():
                         model.forward(data_dict_, light=light)
 
@@ -196,18 +217,19 @@ def main():
                     recon_im = model.data_dict['recon_im'][0][0].permute(1, 2, 0).cpu().clamp(-1, 1).numpy() / 2. + .5
                     light_d = light_d.cpu()
 
-                    if category != 'cosy' and category != 'photos':
-                        mask = data_dict['foreground_mask'][0].cpu().squeeze().numpy() > .5
-                    elif category == 'cosy':
-                        mask = model.data_dict['lr_recon_im_mask'][0, 0].cpu().numpy() > 0
-                    elif category == 'photos':
-                        mask_path = test_path / 'masks' / 'val' f'{index:06d}.png'
-                        if mask_path.exists():
-                            mask = utils.load_array(str(mask_path))[:, :, 0] > .0
-                        else:
-                            mask = None
-                    else:
-                        mask = None
+                    # if category != 'cosy' and category != 'photos':
+                    #     mask = data_dict['foreground_mask'][0].cpu().squeeze().numpy() > .5
+                    # elif category == 'cosy':
+                    #     mask = model.data_dict['lr_recon_im_mask'][0, 0].cpu().numpy() > 0
+                    # elif category == 'photos':
+                    #     mask_path = test_path / 'masks' / 'val' f'{index:06d}.png'
+                    #     if mask_path.exists():
+                    #         mask = utils.load_array(str(mask_path))[:, :, 0] > .0
+                    #     else:
+                    #         mask = None
+                    # else:
+                    #     mask = None
+                    mask = None
 
                     ball = get_ball(light_d_norm[0].cpu()).numpy()
 
@@ -231,6 +253,7 @@ def main():
                         albedo = model.data_dict['recon_albedo'][0][0].permute(1, 2, 0).cpu().clamp(-1, 1).numpy() / 2. + .5
                         depth = (model.data_dict['recon_depth'][0][0].detach().squeeze().cpu().numpy() - model.min_depth) / (model.max_depth - model.min_depth)
                         normal = model.data_dict['recon_normal'][0][0].permute(1, 2, 0).detach().cpu().numpy() / 2 + 0.5
+
                         if p_input:
                             save_plot(input_im, str(out / f'{index:06d}_input.jpg'), False)
                         if p_albedo:
