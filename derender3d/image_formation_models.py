@@ -126,7 +126,7 @@ class ReconPhongIF(nn.Module):
         view_d = self.view_d.expand(b, -1, -1, -1)
 
         if 'netA_out' not in data_dict:
-            # torch.save(self.netA.state_dict(), "/tmp/co3d_netA.pth")
+            torch.save(self.netA.state_dict(), "/tmp/face_netA.pth")
             recon_albedo_specular_notanh = self.netA(input_im)[0]
             data_dict['netA_out'] = recon_albedo_specular_notanh
         else:
@@ -146,7 +146,7 @@ class ReconPhongIF(nn.Module):
         # tensor [recon_albedo] size: [1, 3, 256, 256] , min: tensor(0.0002, device='cuda:0') , max: tensor(0.5834, device='cuda:0')
 
         if 'netL_out' not in data_dict:
-            # torch.save(self.netL.state_dict(), "/tmp/co3d_netL.pth")
+            torch.save(self.netL.state_dict(), "/tmp/face_netL.pth")
             netL_input = input_im if data_dict['target_im'] is None else data_dict['target_im']
             recon_light_notanh = self.netL(netL_input)
             data_dict['netL_out'] = recon_light_notanh

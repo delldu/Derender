@@ -24,6 +24,7 @@ import pdb
 os.system("nvidia-smi")
 
 cp_path = Path('results') / 'models' / 'co3d' / 'checkpoint010.pth'
+cp_path = Path('results') / 'models' / 'celebahq_nr' / 'checkpoint005.pth'
 co3d_base = Path('datasets') / 'co3d'
 cosy_base = Path('datasets') / 'cosy'
 photos_base = Path('datasets') / 'photos'
@@ -70,8 +71,8 @@ b_min = 1.5
 b_max = 1.5
 
 p_reconstruction = True
+p_depth = True
 p_normal = True
-p_depth = False
 p_bump = False
 p_normal_noref = False
 p_diff = True

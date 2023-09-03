@@ -24,8 +24,14 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/delldu/Derender.git",
     packages=["Derender"],
-    package_data={"Derender": ["models/co3d_netD.pth","models/co3d_netA.pth","models/co3d_netL.pth",
-        "models/face_netD.pth","models/face_netA.pth","models/face_netL.pth",
+    package_data={
+        "Derender": [
+            "models/co3d_netD.pth",
+            "models/co3d_netA.pth",
+            "models/co3d_netL.pth",
+            "models/face_netD.pth",
+            "models/face_netA.pth",
+            "models/face_netL.pth",
         ]
     },
     include_package_data=True,

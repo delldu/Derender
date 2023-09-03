@@ -1,3 +1,6 @@
 d92e737e68a16a00e4ec95cf4371c5da  co3d_netA.pth
 756fd51fabac7c445381677a302592e9  co3d_netD.pth
 292724ea19d6a41417f36345a10e5069  co3d_netL.pth
+aecccd32337563a9004d2ebea5c73c95  face_netA.pth
+7026cb98b6fe6e9385d0643bddda85b2  face_netD.pth
+747c90b9b265c5869e4a2972db291d2d  face_netL.pth

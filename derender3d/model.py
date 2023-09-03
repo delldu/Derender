@@ -166,8 +166,8 @@ class Derender3D():
             # (tensor(-1., device='cuda:0'), tensor(0.9922, device='cuda:0'), tensor(0.0499, device='cuda:0'))
 
             recon_depth_bump = self.netD(input_im)[0]
-            # torch.save(self.netD.state_dict(), "/tmp/co3d_netD.pth")
-            
+            torch.save(self.netD.state_dict(), "/tmp/face_netD.pth")
+
             recon_depth = recon_depth_bump[:, :1, :, :]
             recon_bump = recon_depth_bump[:, 1:, :, :]
             recon_bump = recon_bump / torch.norm(recon_bump, p=2, dim=1, keepdim=True)
