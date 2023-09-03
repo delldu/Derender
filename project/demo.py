@@ -11,8 +11,8 @@
 
 import Derender
 
-Derender.predict_co3d("images/co3d/*.png", "output/co3d")
-Derender.predict_co3d("images/face/*.png", "output/co3d")
+Derender.predict("images/co3d/*.png", "output/co3d", version="co3d")
+Derender.predict("images/face/*.png", "output/co3d", version="co3d")
 
-Derender.predict_face("images/co3d/*.png", "output/face")
-Derender.predict_face("images/face/*.png", "output/face")
+Derender.predict("images/co3d/*.png", "output/face", version="face")
+Derender.predict("images/face/*.png", "output/face", version="face")

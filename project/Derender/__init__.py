@@ -49,20 +49,20 @@ def get_model(version):
     # torch::jit::getProfilingMode() = false;
     # torch::jit::setTensorExprFuserEnabled(false);
 
-    # model = torch.jit.script(model)
-    # todos.data.mkdir("output")
-    # if not os.path.exists(f"output/{version}_derender.torch"):
-    #     model.save(f"output/{version}_derender.torch")
+    model = torch.jit.script(model)
+    todos.data.mkdir("output")
+    if not os.path.exists(f"output/{version}_derender.torch"):
+        model.save(f"output/{version}_derender.torch")
 
     return model, device
 
 
-def predict_co3d(input_files, output_dir):
+def predict(input_files, output_dir, version="co3d"):
     # Create directory to store result
     todos.data.mkdir(output_dir)
 
     # load model
-    model, device = get_model(version="co3d")
+    model, device = get_model(version=version)
     transform = Compose(
         [
             lambda image: image.convert("RGB"),
@@ -100,45 +100,3 @@ def predict_co3d(input_files, output_dir):
 
     todos.model.reset_device()
 
-def predict_face(input_files, output_dir):
-    # Create directory to store result
-    todos.data.mkdir(output_dir)
-
-    # load model
-    model, device = get_model(version="face")
-    transform = Compose(
-        [
-            lambda image: image.convert("RGB"),
-            ToTensor(),
-        ]
-    )
-
-    # load files
-    image_filenames = todos.data.load_files(input_files)
-
-    # start predict
-    progress_bar = tqdm(total=len(image_filenames))
-    for filename in image_filenames:
-        progress_bar.update(1)
-
-        image = Image.open(filename).convert("RGB")
-        input_tensor = transform(image).unsqueeze(0).to(device)
-
-        with torch.no_grad():
-            d = model(input_tensor)
-
-        output_file = f"{output_dir}/{os.path.basename(filename)}"
-
-        # depth_tensor = d['depth'].repeat(1, 3, 1, 1)
-        diffuse_shading_tensor = d['diffuse_shading'].repeat(1, 3, 1, 1)
-        specular_shading_tensor = d['specular_shading'].repeat(1, 3, 1, 1)
-
-        todos.data.save_tensor(
-            [input_tensor, d['normal'], d['albedo'], diffuse_shading_tensor, specular_shading_tensor, d['image']],
-            output_file,
-            nrow=3,
-        )
-
-    progress_bar.close()
-
-    todos.model.reset_device()
