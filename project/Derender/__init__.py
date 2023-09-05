@@ -86,14 +86,14 @@ def predict(input_files, output_dir, version="co3d"):
 
         output_file = f"{output_dir}/{os.path.basename(filename)}"
 
-        # depth_tensor = d['depth'].repeat(1, 3, 1, 1)
+        depth_tensor = d['depth'].repeat(1, 3, 1, 1)
         diffuse_shading_tensor = d['diffuse_shading'].repeat(1, 3, 1, 1)
         specular_shading_tensor = d['specular_shading'].repeat(1, 3, 1, 1)
 
         todos.data.save_tensor(
-            [input_tensor, d['normal'], d['albedo'], diffuse_shading_tensor, specular_shading_tensor, d['image']],
+            [input_tensor, depth_tensor, d['normal'], d['albedo'], diffuse_shading_tensor, specular_shading_tensor, d['image']],
             output_file,
-            nrow=3,
+            nrow=7,
         )
 
     progress_bar.close()

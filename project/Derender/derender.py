@@ -72,26 +72,21 @@ class Derender(nn.Module):
         v = v.flip([1, 2])
         return v.unsqueeze(0)
 
-    # def normal_depth(self, depth):
-    #     return (depth - self.min_depth)/(self.max_depth - self.min_depth)
+    def normal_depth(self, depth):
+        depth = depth - torch.min(depth)
+        depth = depth / (torch.max(depth) + 1e-6)
+
+        return 1.0 - depth
 
 
     def predict_shape(self, image) -> Tuple[torch.Tensor, torch.Tensor]:
         recon_depth_bump = self.netD(image)
         recon_depth = recon_depth_bump[:, :1, :, :]
 
-        # recon_depth = recon_depth - recon_depth.mean()
-        # recon_depth = recon_depth.tanh()
         recon_depth = self.depth_rescaler(recon_depth)
-
-        # B, C, H, W = recon_depth.size()
-        # depth_border = torch.zeros((B, C, H, W - 4)).to(recon_depth.device)
-        # depth_border = F.pad(depth_border, (2,2), mode='constant', value=1.0)
-        # recon_depth = recon_depth * (1.0 - depth_border) + depth_border * recon_depth
 
         recon_bump = recon_depth_bump[:, 1:, :, :]
         recon_bump = recon_bump / torch.norm(recon_bump, p=2, dim=1, keepdim=True)
-
 
         # recon_normal = self.renderer.get_normal_from_depth(recon_depth.squeeze(1)).permute(0, 3, 1, 2)
         recon_normal = self.renderer(recon_depth.squeeze(1)).permute(0, 3, 1, 2)
@@ -118,7 +113,7 @@ class Derender(nn.Module):
         view_d = self.view_d.expand(B, -1, -1, -1).to(image.device)
 
         recon_depth, recon_normal = self.predict_shape(image)
-        d["depth"] = recon_depth #  self.normal_depth(recon_depth)
+        d["depth"] = self.normal_depth(recon_depth)
         d["normal"] = (recon_normal + 1.0)/2.0
 
         recon_albedo = self.predict_albedo(image)
